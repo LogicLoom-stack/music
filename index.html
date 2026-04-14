@@ -1,1 +1,38 @@
+// ... (previous imports and logic remain the same)
 
+ return (
+   <div className="min-h-screen bg-black text-white flex flex-col font-sans overflow-hidden">
+     {/* ... (Header remains the same) */}
+     
+     {!isPlaying ? (
+        // ... (Splash screen remains the same)
+     ) : (
+       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden bg-zinc-950">
+         <div className="lg:col-span-3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+           
+           {/* LOOP LAYERS */}
+           <div className="flex-1 space-y-4">
+             {activeLoops.map((isActive, i) => (
+               <div key={i} onClick={() => setSelectedLayer(i)} className={`p-5 rounded-3xl border-2 transition-all flex flex-col gap-4 cursor-pointer ${selectedLayer === i ? 'border-indigo-500 bg-indigo-900/40 shadow-2xl scale-[1.03]' : 'bg-zinc-900/60 border-zinc-800/80'} ${layerMuted[i] ? 'opacity-30 grayscale' : ''}`}>
+                 {/* ... (Layer internal UI remains the same) */}
+               </div>
+             ))}
+           </div>
+
+           {/* ADDED: FOOTER CREDIT LINE */}
+           <div className="mt-auto p-4 text-center">
+             <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-600 font-black">
+               Created by charukalia@
+             </p>
+           </div>
+         </div>
+
+         {/* ... (Main Studio Controls remain the same) */}
+       </div>
+     )}
+     {/* ... (Styles remain the same) */}
+   </div>
+ );
+};
+
+export default App;
