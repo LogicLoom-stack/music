@@ -1,38 +1,254 @@
-// ... (previous imports and logic remain the same)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experience Pro - Digital Remix Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #09090b; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 20px; }
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { 
+            -webkit-appearance: none; border: 2px solid #fff; height: 16px; width: 16px; 
+            border-radius: 50%; background: #4f46e5; cursor: pointer; margin-top: -6px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; cursor: pointer; background: #27272a; border-radius: 2px;
+        }
+        .key-active { background: #4f46e5 !important; border-color: white !important; transform: scale(0.95); box-shadow: 0 0 20px rgba(79, 70, 229, 0.6); }
+    </style>
+</head>
+<body class="text-white min-h-screen flex flex-col overflow-hidden">
 
- return (
-   <div className="min-h-screen bg-black text-white flex flex-col font-sans overflow-hidden">
-     {/* ... (Header remains the same) */}
-     
-     {!isPlaying ? (
-        // ... (Splash screen remains the same)
-     ) : (
-       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden bg-zinc-950">
-         <div className="lg:col-span-3 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-           
-           {/* LOOP LAYERS */}
-           <div className="flex-1 space-y-4">
-             {activeLoops.map((isActive, i) => (
-               <div key={i} onClick={() => setSelectedLayer(i)} className={`p-5 rounded-3xl border-2 transition-all flex flex-col gap-4 cursor-pointer ${selectedLayer === i ? 'border-indigo-500 bg-indigo-900/40 shadow-2xl scale-[1.03]' : 'bg-zinc-900/60 border-zinc-800/80'} ${layerMuted[i] ? 'opacity-30 grayscale' : ''}`}>
-                 {/* ... (Layer internal UI remains the same) */}
-               </div>
-             ))}
-           </div>
+    <!-- HEADER -->
+    <header class="p-4 border-b border-white/10 bg-zinc-900/80 backdrop-blur-xl flex justify-between items-center z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M9 18V5l12-2v13M9 18a3 3 0 11-6 0 3 3 0 016 0zm12-2a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black uppercase tracking-tighter italic leading-none">Experience Pro</h1>
+                <p class="text-[10px] uppercase tracking-widest text-indigo-400 font-black mt-1">Created by charukalia@</p>
+            </div>
+        </div>
+        <div id="master-controls" class="hidden flex gap-4">
+            <button onclick="toggleMasterRecord()" id="master-rec-btn" class="px-5 py-2.5 border-2 border-white/20 rounded-xl text-[11px] font-black uppercase hover:bg-white/5 transition-all">Master Record</button>
+            <button onclick="clearAll()" class="px-5 py-2.5 border border-white/10 text-zinc-400 text-[11px] font-black uppercase rounded-xl hover:bg-red-950 transition-all">Clear All</button>
+        </div>
+    </header>
 
-           {/* ADDED: FOOTER CREDIT LINE */}
-           <div className="mt-auto p-4 text-center">
-             <p className="text-[9px] uppercase tracking-[0.4em] text-zinc-600 font-black">
-               Created by charukalia@
-             </p>
-           </div>
-         </div>
+    <!-- SPLASH SCREEN -->
+    <main id="splash" class="flex-1 flex flex-col items-center justify-center bg-zinc-950">
+        <div class="relative group cursor-pointer" onclick="initAudio()">
+            <div class="absolute inset-0 bg-indigo-500 blur-[120px] opacity-20 animate-pulse"></div>
+            <p class="text-8xl font-black tracking-[0.3em] uppercase relative z-10 italic">Studio</p>
+        </div>
+        <button onclick="initAudio()" class="mt-12 bg-indigo-600 px-10 py-4 rounded-full font-black hover:bg-indigo-500 transition-all shadow-2xl text-sm tracking-[0.2em] uppercase">Initialize Master Studio</button>
+    </main>
 
-         {/* ... (Main Studio Controls remain the same) */}
-       </div>
-     )}
-     {/* ... (Styles remain the same) */}
-   </div>
- );
-};
+    <!-- STUDIO INTERFACE -->
+    <main id="studio" class="hidden flex-1 grid grid-cols-12 gap-6 p-6 bg-zinc-950 overflow-hidden">
+        
+        <!-- SIDEBAR: LAYERS -->
+        <aside class="col-span-3 space-y-4 overflow-y-auto pr-2 custom-scrollbar" id="layers-container"></aside>
 
-export default App;
+        <!-- MAIN CANVAS -->
+        <section class="col-span-9 flex flex-col gap-6 overflow-y-auto custom-scrollbar">
+            
+            <!-- VISUALIZER / MONITOR -->
+            <div class="h-36 bg-gradient-to-br from-zinc-900 to-black rounded-[3rem] border border-white/10 flex items-center justify-center relative shadow-inner overflow-hidden">
+                <div id="note-display" class="text-8xl font-black text-white uppercase tracking-tighter drop-shadow-[0_0_30px_rgba(99,102,241,0.6)] z-10 italic">READY</div>
+                <div id="rec-indicator" class="hidden absolute bottom-5 right-10 flex items-center gap-4 text-red-500 text-[12px] font-black uppercase tracking-[0.2em] animate-pulse">
+                    <div class="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_10px_red]"></div> MASTER RECORDING
+                </div>
+            </div>
+
+            <!-- INSTRUMENTS -->
+            <div class="space-y-6">
+                <!-- BASS -->
+                <div class="bg-zinc-900/40 p-6 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                    <h4 class="text-[11px] font-black text-blue-400 uppercase tracking-[0.3em] mb-4">Orchestral Bass (Keys 1-7)</h4>
+                    <div class="flex justify-center gap-3" id="bass-pads"></div>
+                </div>
+
+                <!-- PIANO -->
+                <div class="bg-zinc-900/40 p-6 rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden">
+                    <h4 class="text-[11px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-4">Concert Grand (Keys A-')</h4>
+                    <div class="flex justify-center gap-1 py-4 overflow-x-auto custom-scrollbar" id="piano-keys"></div>
+                </div>
+
+                <!-- DRUMS -->
+                <div class="bg-zinc-900/40 p-6 rounded-[2.5rem] border border-white/5 shadow-2xl flex-1 min-h-[180px]">
+                    <h4 class="text-[11px] font-black text-zinc-500 uppercase tracking-[0.3em] mb-4">Percussion Pads (Keys Z-M)</h4>
+                    <div class="grid grid-cols-4 gap-4 h-32" id="drum-pads"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // DATA MAPS
+        const bassMap = { '1': 'C2', '2': 'D2', '3': 'E2', '4': 'F2', '5': 'G2', '6': 'A2', '7': 'B2' };
+        const pianoMap = { 'a': 'C4', 'w': 'C#4', 's': 'D4', 'e': 'D#4', 'd': 'E4', 'f': 'F4', 't': 'F#4', 'g': 'G4', 'y': 'G#4', 'h': 'A4', 'u': 'A#4', 'j': 'B4', 'k': 'C5', 'o': 'C#5', 'l': 'D5', 'p': 'D#5', ';': 'E5', "'": 'F5' };
+        const drumMap = { 'z': 'kick', 'x': 'snare', 'c': 'hatClosed', 'v': 'tom', 'b': 'hatOpen', 'n': 'clap', 'm': 'rim' };
+
+        // STUDIO STATE
+        let isLoaded = false;
+        let selectedLayer = 0;
+        let isRecording = null;
+        let isMasterRecording = false;
+        const recorders = [[], [], [], [], [], []];
+        const loopParts = [null, null, null, null, null, null];
+        const layerMeta = Array(6).fill().map(() => ({ volume: 0, speed: 1, length: 32, muted: false }));
+
+        // AUDIO NODES
+        let masterRecorder, piano, bass, percussion;
+
+        async function initAudio() {
+            await Tone.start();
+            document.getElementById('splash').classList.add('hidden');
+            document.getElementById('studio').classList.remove('hidden');
+            document.getElementById('master-controls').classList.remove('hidden');
+
+            masterRecorder = new Tone.Recorder();
+            const reverb = new Tone.Reverb({ decay: 5, wet: 0.3 }).toDestination();
+            const delay = new Tone.FeedbackDelay("8n", 0.2).connect(reverb);
+            const masterVol = new Tone.Volume(-6).connect(delay);
+            Tone.getDestination().connect(masterRecorder);
+
+            // INSTRUMENTS
+            piano = new Tone.Sampler({
+                urls: { "C4": "C4.mp3", "A4": "A4.mp3" },
+                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                release: 1
+            }).connect(masterVol);
+
+            bass = new Tone.MonoSynth().connect(masterVol);
+            percussion = {
+                kick: new Tone.MembraneSynth().connect(masterVol),
+                snare: new Tone.NoiseSynth().connect(masterVol),
+                hatClosed: new Tone.MetalSynth().connect(masterVol)
+            };
+
+            renderUI();
+            setupKeyboard();
+            Tone.Transport.start();
+            isLoaded = true;
+        }
+
+        function playSound(key, layerIdx = null) {
+            const time = Tone.now();
+            if (bassMap[key]) bass.triggerAttackRelease(bassMap[key], "8n", time);
+            if (pianoMap[key]) piano.triggerAttackRelease(pianoMap[key], "4n", time);
+            if (drumMap[key]) {
+                if (key === 'z') percussion.kick.triggerAttackRelease("C1", "8n", time);
+                if (key === 'x') percussion.snare.triggerAttack(time);
+                if (key === 'c') percussion.hatClosed.triggerAttackRelease("16n", time);
+            }
+
+            document.getElementById('note-display').innerText = key.toUpperCase();
+            
+            if (isRecording !== null) {
+                recorders[isRecording].push({ time: Tone.Transport.seconds, key });
+            }
+        }
+
+        function toggleRecord(idx) {
+            if (isRecording === idx) {
+                isRecording = null;
+                startLoop(idx);
+            } else {
+                isRecording = idx;
+                recorders[idx] = [];
+            }
+            renderUI();
+        }
+
+        function startLoop(idx) {
+            if (loopParts[idx]) loopParts[idx].dispose();
+            const startTime = recorders[idx][0]?.time || 0;
+            loopParts[idx] = new Tone.Part((time, event) => {
+                playSound(event.key);
+            }, recorders[idx]).start(0);
+            loopParts[idx].loop = true;
+            loopParts[idx].loopEnd = "2m";
+        }
+
+        function renderUI() {
+            // RENDER LAYERS
+            const container = document.getElementById('layers-container');
+            container.innerHTML = layerMeta.map((m, i) => `
+                <div onclick="selectedLayer=${i}; renderUI()" class="p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedLayer === i ? 'border-indigo-500 bg-indigo-900/20' : 'bg-zinc-900 border-transparent'}">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-black italic">LAYER ${i+1}</span>
+                        <button onclick="toggleRecord(${i})" class="px-3 py-1 rounded-lg text-[10px] font-bold ${isRecording === i ? 'bg-red-600 animate-pulse' : 'bg-zinc-800'}">REC</button>
+                    </div>
+                    <div class="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-indigo-500" style="width: ${recorders[i].length * 5}%"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            // RENDER BASS PADS
+            document.getElementById('bass-pads').innerHTML = Object.keys(bassMap).map(k => `
+                <div id="key-${k}" class="h-16 w-16 bg-zinc-900 border border-blue-900/30 rounded-xl flex items-center justify-center font-bold text-blue-400">${k}</div>
+            `).join('');
+
+            // RENDER PIANO
+            document.getElementById('piano-keys').innerHTML = Object.keys(pianoMap).map(k => `
+                <div id="key-${k}" class="h-32 w-10 bg-white text-black rounded-lg flex items-end justify-center pb-2 font-bold text-[10px] shrink-0">${k.toUpperCase()}</div>
+            `).join('');
+
+            // RENDER DRUMS
+            document.getElementById('drum-pads').innerHTML = Object.keys(drumMap).map(k => `
+                <div id="key-${k}" class="bg-zinc-900 border border-white/5 rounded-2xl flex items-center justify-center font-black uppercase italic">${drumMap[k]}</div>
+            `).join('');
+        }
+
+        function setupKeyboard() {
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                const el = document.getElementById(`key-${key}`);
+                if (el) {
+                    el.classList.add('key-active');
+                    playSound(key);
+                }
+            });
+            window.addEventListener('keyup', (e) => {
+                const el = document.getElementById(`key-${e.key.toLowerCase()}`);
+                if (el) el.classList.remove('key-active');
+            });
+        }
+
+        async function toggleMasterRecord() {
+            const btn = document.getElementById('master-rec-btn');
+            const ind = document.getElementById('rec-indicator');
+            if (!isMasterRecording) {
+                masterRecorder.start();
+                isMasterRecording = true;
+                btn.innerText = "STOP & SAVE";
+                btn.classList.add('bg-red-600', 'border-red-500');
+                ind.classList.remove('hidden');
+            } else {
+                const blob = await masterRecorder.stop();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "remix-session.webm"; a.click();
+                isMasterRecording = false;
+                btn.innerText = "MASTER RECORD";
+                btn.classList.remove('bg-red-600', 'border-red-500');
+                ind.classList.add('hidden');
+            }
+        }
+
+        function clearAll() {
+            recorders.forEach((r, i) => { recorders[i] = []; if(loopParts[i]) loopParts[i].dispose(); });
+            renderUI();
+        }
+    </script>
+</body>
+</html>
